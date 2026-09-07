@@ -47,13 +47,11 @@ jobs:
             curl --fail --location --retry 3 --connect-timeout 20 "$base/$f" -o "source-images/$f"
           done
 
-          # Logo is already small; losslessly reduce it while retaining PNG transparency.
           pngquant --force --skip-if-larger --quality=80-100 --output assets/images/home-mate-logo.png source-images/Circle-Logo.png || cp source-images/Circle-Logo.png assets/images/home-mate-logo.png
 
-          # Resize large project photos to a sensible web maximum, strip metadata and encode WebP.
           convert_photo () {
             src="$1"; dst="$2"
-            magick "$src" -auto-orient -strip -resize '1600x1600>' -quality 82 "$dst"
+            convert "$src" -auto-orient -strip -resize '1600x1600>' -quality 82 "$dst"
           }
           convert_photo source-images/Air-bnb.png assets/images/holiday-rental-maintenance.webp
           convert_photo source-images/Deck-After.jpeg assets/images/deck-after.webp
