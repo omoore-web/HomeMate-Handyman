@@ -1,103 +1,27 @@
-name: Prepare images and preview
+name: Deploy HomeMate preview
 
 on:
   push:
     branches: [main]
-    paths:
-      - '.github/workflows/prepare-and-preview.yml'
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
   pages: write
   id-token: write
 
 concurrency:
   group: homemate-preview
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
-  prepare:
+  deploy:
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-      - name: Install image tools
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y imagemagick webp pngquant
-      - name: Download and optimise current HomeMate images
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p assets/images source-images
-          base='https://homemateprojects.com.au'
-          files=(
-            'Circle-Logo.png'
-            'Air-bnb.png'
-            'Deck-After.jpeg'
-            'Deck-Build.png'
-            'Garden-After.jpeg'
-            'Lean-to-After.jpeg'
-            'Patio-After.jpeg'
-            'Shelving-Install.png'
-            'Small-Walkway.jpeg'
-            'Vanity-After.jpeg'
-          )
-          for f in "${files[@]}"; do
-            curl --fail --location --retry 3 --connect-timeout 20 "$base/$f" -o "source-images/$f"
-          done
-
-          pngquant --force --skip-if-larger --quality=80-100 --output assets/images/home-mate-logo.png source-images/Circle-Logo.png || cp source-images/Circle-Logo.png assets/images/home-mate-logo.png
-
-          convert_photo () {
-            src="$1"; dst="$2"
-            convert "$src" -auto-orient -strip -resize '1600x1600>' -quality 82 "$dst"
-          }
-          convert_photo source-images/Air-bnb.png assets/images/holiday-rental-maintenance.webp
-          convert_photo source-images/Deck-After.jpeg assets/images/deck-after.webp
-          convert_photo source-images/Deck-Build.png assets/images/deck-build.webp
-          convert_photo source-images/Garden-After.jpeg assets/images/garden-after.webp
-          convert_photo source-images/Lean-to-After.jpeg assets/images/lean-to-after.webp
-          convert_photo source-images/Patio-After.jpeg assets/images/patio-after.webp
-          convert_photo source-images/Shelving-Install.png assets/images/shelving-install.webp
-          convert_photo source-images/Small-Walkway.jpeg assets/images/small-walkway.webp
-          convert_photo source-images/Vanity-After.jpeg assets/images/vanity-after.webp
-
-          rm -rf source-images
-
-      - name: Switch site to repository images
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          replacements = {
-            'https://homemateprojects.com.au/Circle-Logo.png':'assets/images/home-mate-logo.png',
-            'https://homemateprojects.com.au/Air-bnb.png':'assets/images/holiday-rental-maintenance.webp',
-            'https://homemateprojects.com.au/Deck-After.jpeg':'assets/images/deck-after.webp',
-            'https://homemateprojects.com.au/Deck-Build.png':'assets/images/deck-build.webp',
-            'https://homemateprojects.com.au/Garden-After.jpeg':'assets/images/garden-after.webp',
-            'https://homemateprojects.com.au/Lean-to-After.jpeg':'assets/images/lean-to-after.webp',
-            'https://homemateprojects.com.au/Patio-After.jpeg':'assets/images/patio-after.webp',
-            'https://homemateprojects.com.au/Shelving-Install.png':'assets/images/shelving-install.webp',
-            'https://homemateprojects.com.au/Small-Walkway.jpeg':'assets/images/small-walkway.webp',
-            'https://homemateprojects.com.au/Vanity-After.jpeg':'assets/images/vanity-after.webp',
-          }
-          for path in list(Path('.').glob('*.html')) + [Path('assets/styles.css')]:
-              text = path.read_text()
-              for old, new in replacements.items():
-                  text = text.replace(old, new)
-              path.write_text(text)
-          PY
-      - name: Commit optimised assets
-        run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add assets/images '*.html' assets/styles.css
-          if git diff --cached --quiet; then
-            echo 'No asset changes to commit.'
-          else
-            git commit -m 'Optimise and localise website images [skip ci]'
-            git push
-          fi
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
         with:
@@ -109,6 +33,3 @@ jobs:
       - name: Deploy preview
         id: deployment
         uses: actions/deploy-pages@v4
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
